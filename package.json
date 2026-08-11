@@ -1,0 +1,36 @@
+{
+  "name": "pi-inspect-image-vision-bridge",
+  "version": "1.1.0",
+  "description": "Pi extension that gives non-vision chat models vision through a separately selected vision model",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "vision",
+    "image-analysis",
+    "multimodal"
+  ],
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Tan Jee Schuan",
+      "url": "https://github.com/TanJeeSchuan/pi-inspect-image"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jayp-st-author/pi-inspect-image-vision-bridge.git"
+  },
+  "homepage": "https://github.com/jayp-st-author/pi-inspect-image-vision-bridge#readme",
+  "files": [
+    "extensions/",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": ["./extensions"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "typebox": "*"
+  }
+}
