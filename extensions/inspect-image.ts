@@ -11,6 +11,7 @@ import {
 	defineTool,
 	type ExtensionAPI,
 	type ExtensionContext,
+	getAgentDir,
 	type ModelRuntime,
 	ModelSelectorComponent,
 	type SettingsManager,
@@ -52,10 +53,13 @@ function projectSettingsPath(cwd: string): string {
 	return join(cwd, ".pi", "settings.json");
 }
 
-async function readProjectSettingsRaw(
-	cwd: string,
+function globalSettingsPath(): string {
+	return join(getAgentDir(), "settings.json");
+}
+
+async function readSettingsRaw(
+	path: string,
 ): Promise<Record<string, unknown>> {
-	const path = projectSettingsPath(cwd);
 	if (!existsSync(path)) return {};
 	try {
 		const raw = await readFile(path, "utf-8");
@@ -65,26 +69,29 @@ async function readProjectSettingsRaw(
 	}
 }
 
-async function writeProjectSettings(
-	cwd: string,
+async function writeSettings(
+	path: string,
 	settings: Record<string, unknown>,
 ): Promise<void> {
-	const path = projectSettingsPath(cwd);
 	await mkdir(dirname(path), { recursive: true });
 	await writeFile(path, `${JSON.stringify(settings, null, 2)}\n`, "utf-8");
 }
 
+/**
+ * Persist visionConfig into a settings file via read-modify-write so unrelated
+ * keys survive. ponytail: raw read-modify-write races with concurrent settings
+ * writers (last write wins); switch to Pi's SettingsManager if that bites.
+ */
 async function saveVisionConfig(
-	cwd: string,
+	path: string,
 	config: VisionConfig,
 ): Promise<void> {
-	const settings = await readProjectSettingsRaw(cwd);
+	const settings = await readSettingsRaw(path);
 	settings.visionConfig = config;
-	await writeProjectSettings(cwd, settings);
+	await writeSettings(path, settings);
 }
 
-function getVisionConfig(cwd: string): VisionConfig | undefined {
-	const path = projectSettingsPath(cwd);
+function readVisionConfig(path: string): VisionConfig | undefined {
 	if (!existsSync(path)) return undefined;
 	try {
 		const raw = JSON.parse(readFileSync(path, "utf-8")) as Record<
@@ -100,6 +107,14 @@ function getVisionConfig(cwd: string): VisionConfig | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+/** Project-local visionConfig overrides the global agent-level default. */
+function getVisionConfig(cwd: string): VisionConfig | undefined {
+	return (
+		readVisionConfig(projectSettingsPath(cwd)) ??
+		readVisionConfig(globalSettingsPath())
+	);
 }
 
 // ── API URL Resolution ──────────────────────────────────────────────
@@ -230,6 +245,8 @@ async function runVisionSetup(
 	const model = await selectVisionModel(ctx);
 	if (!model) return undefined;
 
+	// Preserve maxTokens from the effective config, then save globally so the
+	// selection carries across projects; a project visionConfig still overrides it.
 	const previous = getVisionConfig(ctx.cwd);
 	const config: VisionConfig = {
 		provider: model.provider,
@@ -238,7 +255,7 @@ async function runVisionSetup(
 			? {}
 			: { maxTokens: previous.maxTokens }),
 	};
-	await saveVisionConfig(ctx.cwd, config);
+	await saveVisionConfig(globalSettingsPath(), config);
 	return config;
 }
 
@@ -251,7 +268,9 @@ async function ensureVisionConfig(
 	const configured = await runVisionSetup(ctx);
 	if (!configured) {
 		throw new Error(
-			"No vision model is configured. Run /setup-vision, or add a visionConfig block to .pi/settings.json.",
+			"No vision model is configured. Run /setup-vision, or add a visionConfig block to .pi/settings.json (project override) or " +
+				globalSettingsPath() +
+				" (global).",
 		);
 	}
 	return configured;
