@@ -11,6 +11,7 @@ This fork is based on the original `pi-inspect-image` extension by [Tan Jee Schu
 - `/setup-vision` uses Pi's built-in `ModelSelectorComponent`, including fuzzy search, model refresh, provider labels, and the same keyboard behavior as `/model`.
 - The selected chat model is never changed when selecting a vision model.
 - `inspect_image` still handles image paths and uses the same vision configuration.
+- The selected vision model is saved once in Pi's global agent settings and reused across projects; a project-local `visionConfig` in `.pi/settings.json` still overrides it.
 - Existing manual `visionConfig.baseUrl` configurations remain supported through an OpenAI-compatible fallback request.
 
 ## Install
@@ -41,7 +42,7 @@ pi update
 
 The selector is the same searchable selector Pi uses for `/model`; it is filtered to authenticated models whose input includes images. Your normal chat model is not changed.
 
-Configuration is saved to the project at `.pi/settings.json`:
+Configuration is saved once, globally, in Pi's agent settings file (`~/.pi/agent/settings.json` by default, or `PI_CODING_AGENT_DIR` if set), so the choice applies to every project. Unrelated settings in that file are preserved:
 
 ```json
 {
@@ -52,7 +53,7 @@ Configuration is saved to the project at `.pi/settings.json`:
 }
 ```
 
-`maxTokens` is optional. `baseUrl` is optional for custom OpenAI-compatible endpoints.
+To override the vision model for a single project, add a `visionConfig` block to that project's `.pi/settings.json` — it takes precedence over the global default. `maxTokens` is optional. `baseUrl` is optional for custom OpenAI-compatible endpoints.
 
 ## Usage
 
@@ -68,7 +69,7 @@ For a file path, use the `inspect_image` tool or ask Pi to inspect the image. Th
 
 The selector uses Pi's model registry, so it supports any authenticated Pi provider that advertises `input: ["image"]`, including dynamically loaded providers such as LLM Gateway. Configure credentials through Pi's normal `/login` flow or `auth.json`.
 
-For a manually configured OpenAI-compatible fallback:
+For a manually configured OpenAI-compatible fallback (put it in the global agent settings file, or in a project's `.pi/settings.json` to override):
 
 ```json
 {
